@@ -1,0 +1,11 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui" onLoad="ribbon.OnAddinLoad">
+    <ribbon startFromScratch="false">
+        <tabs>
+            <tab id="excelAgentTab" label="AI Agent">
+                <group id="agentGroup" label="AI 助手">
+                    <button id="openAgent" label="打开 Agent" onAction="ribbon.OnAction" getEnabled="ribbon.OnGetEnabled" getImage="ribbon.GetImage" visible="true" size="large"/>
+                </group>
+            </tab>
+        </tabs>
+    </ribbon>
+</customUI>
