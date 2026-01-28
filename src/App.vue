@@ -18,5 +18,6 @@ window.ribbon = ribbon;
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg-primary);
 }
 </style>

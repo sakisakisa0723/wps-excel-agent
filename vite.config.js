@@ -18,7 +18,7 @@ export default defineConfig({
     cors: true,
     proxy: {
       '/api/llm': {
-        target: 'https://api.xiaomimimo.com',
+        target: process.env.TARGET_API || 'https://api.openai.com',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api\/llm/, '')

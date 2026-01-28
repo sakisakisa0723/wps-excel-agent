@@ -44,18 +44,29 @@ npm run build
 
 ### 解决跨域问题
 
-生产环境需要代理 LLM API。可以：
+WPS Excel 插件在 Windows 上直接调用外部 API 会遇到跨域问题。提供三种解决方案：
 
-1. 使用 `proxy-server.js`（需要 Node.js 服务器）：
+**方案1: Node.js 代理服务器（推荐自建服务器使用）**
+
+在服务器上运行：
 ```bash
 node proxy-server.js
 # 或用 pm2
 pm2 start proxy-server.js --name llm-proxy
 ```
 
-2. 或使用 Cloudflare Workers / 阿里云函数计算搭建代理
+然后在插件设置中：
+- 开启「使用代理服务器」
+- 填写代理地址，如 `https://your-server.com:3456`
 
-然后在插件设置里修改 API URL 为你的代理地址。
+**方案2: Cloudflare Workers（推荐无服务器部署）**
+
+1. 将 `proxy-worker.js` 部署到 Cloudflare Workers
+2. 在插件设置中开启代理，填写 Worker URL
+
+**方案3: 使用支持 CORS 的 API 提供商**
+
+某些 API 提供商（如 OpenRouter）支持 CORS，可直接使用。
 
 ## 配置
 
