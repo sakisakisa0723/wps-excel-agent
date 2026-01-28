@@ -39,16 +39,11 @@ export function getConfig() {
 
 // 获取实际请求 URL
 function getApiUrl() {
-    // 开发环境使用 Vite 代理
     if (import.meta.env.DEV) {
         return '/api/llm/v1/chat/completions';
     }
-    // 如果启用了代理服务器，使用代理地址
-    if (config.useProxy && config.proxyUrl) {
-        return config.proxyUrl.replace(/\/$/, '') + '/v1/chat/completions';
-    }
-    // 生产环境直连（可能会有跨域问题）
-    return config.apiUrl;
+    // 生产环境使用内置代理
+    return '/proxy?url=' + encodeURIComponent(config.apiUrl);
 }
 
 // 调用 LLM API
@@ -56,16 +51,10 @@ export async function callLLM(messages, options = {}) {
     const { signal, onChunk } = options;
 
     try {
-        // 构建请求头
         const headers = {
             'Authorization': `Bearer ${config.apiKey}`,
             'Content-Type': 'application/json'
         };
-
-        // 如果使用代理服务器，添加目标 API 地址到头
-        if (config.useProxy && config.proxyUrl) {
-            headers['X-Target-API'] = config.apiUrl.replace('/v1/chat/completions', '');
-        }
 
         const response = await fetch(getApiUrl(), {
             method: 'POST',
