@@ -1,13 +1,13 @@
 :root {
-  --bg-primary: #212121;
-  --bg-secondary: #2f2f2f;
-  --bg-tertiary: #3a3a3a;
-  --bg-hover: #424242;
-  --text-primary: #ececec;
-  --text-secondary: #b4b4b4;
-  --text-tertiary: #8e8e8e;
-  --border-primary: #424242;
-  --border-focus: #6b6b6b;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f5f5f5;
+  --bg-tertiary: #eeeeee;
+  --bg-hover: #e8e8e8;
+  --text-primary: #1a1a1a;
+  --text-secondary: #555555;
+  --text-tertiary: #888888;
+  --border-primary: #e0e0e0;
+  --border-focus: #bdbdbd;
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
@@ -27,4 +27,4 @@ body {
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #555; border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
