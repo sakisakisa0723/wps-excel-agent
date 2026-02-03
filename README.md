@@ -7,76 +7,53 @@
 - 🤖 自然语言交互，自动执行表格操作
 - 📊 读取/写入单元格、搜索数据、插入公式
 - 🎯 Agent 模式：自动规划并执行多步任务
-- ⚙️ 支持自定义 OpenAI 兼容 API
-
-## 截图
-
-Claude 风格的简洁 UI，工具调用可折叠显示。
+- ⚙️ 支持自定义 OpenAI 兼容 API（如 Kimi、DeepSeek 等）
 
 ## 安装
 
-### 开发调试
+### 1. 服务器部署
 
 ```bash
+# 安装依赖
 npm install
-npm run dev
-wpsjs debug
-```
 
-### 生产部署
-
-1. 构建：
-```bash
+# 构建
 npm run build
+
+# 启动服务器（端口 3890）
+node server.js
 ```
 
-2. 将 `dist/` 文件夹上传到你的服务器
+或使用 PM2 守护进程：
+```bash
+pm2 start server.js --name wps-excel-agent
+```
 
-3. 在 Windows 上配置 `%appdata%\kingsoft\wps\jsaddons\publish.xml`：
+### 2. WPS 插件配置
+
+在 Windows 上配置 `%appdata%\kingsoft\wps\jsaddons\publish.xml`：
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <jsplugins>
-    <jspluginonline name="Excel AI Agent" url="https://你的域名/" type="et" enable="enable_dev"/>
+    <jspluginonline name="Excel AI Agent" url="http://你的服务器IP:3890/" type="et" enable="enable_dev"/>
 </jsplugins>
 ```
 
-4. 重启 WPS 表格
-
-### 解决跨域问题
-
-WPS Excel 插件在 Windows 上直接调用外部 API 会遇到跨域问题。提供三种解决方案：
-
-**方案1: Node.js 代理服务器（推荐自建服务器使用）**
-
-在服务器上运行：
-```bash
-node proxy-server.js
-# 或用 pm2
-pm2 start proxy-server.js --name llm-proxy
-```
-
-然后在插件设置中：
-- 开启「使用代理服务器」
-- 填写代理地址，如 `https://your-server.com:3456`
-
-**方案2: Cloudflare Workers（推荐无服务器部署）**
-
-1. 将 `proxy-worker.js` 部署到 Cloudflare Workers
-2. 在插件设置中开启代理，填写 Worker URL
-
-**方案3: 使用支持 CORS 的 API 提供商**
-
-某些 API 提供商（如 OpenRouter）支持 CORS，可直接使用。
+重启 WPS 表格即可使用。
 
 ## 配置
 
 点击插件右上角设置按钮，可配置：
 
-- Base URL：API 端点地址
-- API Key：你的 API 密钥
-- Model：模型名称
+- **Base URL**: API 端点地址，例如：
+  - Kimi: `https://api.moonshot.cn/v1/chat/completions`
+  - DeepSeek: `https://api.deepseek.com/v1/chat/completions`
+  - OpenAI: `https://api.openai.com/v1/chat/completions`
+- **API Key**: 你的 API 密钥
+- **模型**: 模型名称，例如 `moonshot-v1-8k`、`deepseek-chat`
 
-支持任何 OpenAI 兼容的 API。
+配置会自动保存到浏览器 localStorage。
 
 ## 技术栈
 

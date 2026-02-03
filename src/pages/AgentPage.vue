@@ -180,7 +180,12 @@ async function send() {
 const stop = () => { isRunning.value = false; rmThink(); add({ type: 'error', content: '已停止' }); };
 const clearChat = () => messages.value = [];
 const loadSettings = () => { const c = loadConfig(); Object.assign(settings, c); };
-const saveSettings = () => { saveConfig({ ...settings }); showSettings.value = false; };
+const saveSettings = () => { 
+    saveConfig({ ...settings }); 
+    showSettings.value = false; 
+    // 重新加载配置确保生效
+    loadConfig();
+};
 const resetSettings = () => Object.assign(settings, defaults);
 onMounted(loadSettings);
 </script>

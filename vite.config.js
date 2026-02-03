@@ -17,11 +17,10 @@ export default defineConfig({
     port: 3000,
     cors: true,
     proxy: {
-      '/api/llm': {
-        target: process.env.TARGET_API || 'https://api.openai.com',
-        changeOrigin: true,
-        secure: false,
-        rewrite: (path) => path.replace(/^\/api\/llm/, '')
+      // 开发时代理到目标 API
+      '/proxy': {
+        target: 'http://localhost:3890',
+        changeOrigin: true
       }
     }
   },

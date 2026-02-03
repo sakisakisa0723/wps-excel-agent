@@ -3,47 +3,67 @@
  * 支持 OpenAI 兼容接口
  */
 
-// 默认配置（可在设置中修改）
-let config = {
+const STORAGE_KEY = 'wps_excel_agent_config';
+
+// 默认配置
+const DEFAULT_CONFIG = {
     apiUrl: 'https://api.openai.com/v1/chat/completions',
     apiKey: '',
     model: 'gpt-3.5-turbo',
-    // 代理服务器配置（解决跨域问题）
-    useProxy: false,
-    proxyUrl: ''
+    useProxy: true,  // 默认启用代理以解决跨域
+    proxyUrl: ''     // 空表示使用同域代理 /proxy
 };
 
-// 加载配置
-export function loadConfig() {
+// 当前配置（内存缓存）
+let config = { ...DEFAULT_CONFIG };
+
+// 从 localStorage 加载配置
+function loadFromStorage() {
     try {
-        const saved = localStorage.getItem('agent_llm_config');
+        const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            config = { ...config, ...JSON.parse(saved) };
+            const parsed = JSON.parse(saved);
+            config = { ...DEFAULT_CONFIG, ...parsed };
         }
     } catch (e) {
         console.error('加载配置失败:', e);
+        config = { ...DEFAULT_CONFIG };
     }
-    return config;
+}
+
+// 初始化加载
+loadFromStorage();
+
+// 加载配置（供外部调用，返回配置副本）
+export function loadConfig() {
+    loadFromStorage();
+    return { ...config };
 }
 
 // 保存配置
 export function saveConfig(newConfig) {
     config = { ...config, ...newConfig };
-    localStorage.setItem('agent_llm_config', JSON.stringify(config));
+    try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    } catch (e) {
+        console.error('保存配置失败:', e);
+    }
 }
 
-// 获取当前配置
+// 获取当前配置（实时）
 export function getConfig() {
     return { ...config };
 }
 
 // 获取实际请求 URL
 function getApiUrl() {
-    if (import.meta.env.DEV) {
-        return '/api/llm/v1/chat/completions';
+    // 如果启用代理，使用同域代理端点
+    if (config.useProxy) {
+        // 代理服务器会将请求转发到 config.apiUrl
+        return '/proxy';
     }
-    // 生产环境使用内置代理
-    return '/proxy?url=' + encodeURIComponent(config.apiUrl);
+    // 不使用代理时直接访问（会有跨域问题）
+    return config.apiUrl;
 }
 
 // 调用 LLM API
@@ -53,7 +73,8 @@ export async function callLLM(messages, options = {}) {
     try {
         const headers = {
             'Authorization': `Bearer ${config.apiKey}`,
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            'X-Target-URL': config.apiUrl  // 告诉代理服务器目标地址
         };
 
         const response = await fetch(getApiUrl(), {
