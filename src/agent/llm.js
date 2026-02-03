@@ -1,6 +1,6 @@
 /**
  * LLM API 调用
- * 支持 OpenAI 兼容接口
+ * 支持 OpenAI 和 Anthropic (Claude) 兼容接口
  */
 
 const STORAGE_KEY = 'wps_excel_agent_config';
@@ -10,8 +10,7 @@ const DEFAULT_CONFIG = {
     apiUrl: 'https://api.openai.com/v1/chat/completions',
     apiKey: '',
     model: 'gpt-3.5-turbo',
-    useProxy: true,  // 默认启用代理以解决跨域
-    proxyUrl: ''     // 空表示使用同域代理 /proxy
+    apiType: 'openai'  // 'openai' 或 'anthropic'
 };
 
 // 当前配置（内存缓存）
@@ -55,15 +54,26 @@ export function getConfig() {
     return { ...config };
 }
 
-// 获取实际请求 URL
-function getApiUrl() {
-    // 如果启用代理，使用同域代理端点
-    if (config.useProxy) {
-        // 代理服务器会将请求转发到 config.apiUrl
-        return '/proxy';
+// 检测 API 类型
+function detectApiType(url) {
+    if (url.includes('kimi.com/coding') || 
+        url.includes('anthropic') ||
+        url.includes('api.anthropic.com')) {
+        return 'anthropic';
     }
-    // 不使用代理时直接访问（会有跨域问题）
-    return config.apiUrl;
+    return config.apiType || 'openai';
+}
+
+// 转换为 Anthropic 格式消息
+function convertToAnthropicMessages(messages) {
+    // 找到 system 消息
+    const systemMsg = messages.find(m => m.role === 'system');
+    const system = systemMsg ? systemMsg.content : '';
+    
+    // 其他消息（user/assistant）
+    const otherMessages = messages.filter(m => m.role !== 'system');
+    
+    return { system, messages: otherMessages };
 }
 
 // 调用 LLM API
@@ -71,30 +81,86 @@ export async function callLLM(messages, options = {}) {
     const { signal, onChunk } = options;
 
     try {
+        // 自动检测 API 类型并修正 URL
+        const apiType = detectApiType(config.apiUrl);
+        const isAnthropic = apiType === 'anthropic';
+        
+        // 使用同域代理，避免跨域
+        const url = '/proxy';
+        
+        // 修正目标 URL：Anthropic 格式用 /v1/messages
+        let targetUrl = config.apiUrl;
+        if (isAnthropic) {
+            // 提取基础路径（到 /v1 为止）
+            const baseMatch = targetUrl.match(/^(https?:\/\/[^\/]+\/[^\/]+\/v1)/);
+            if (baseMatch) {
+                targetUrl = baseMatch[1] + '/messages';
+            } else if (targetUrl.includes('/chat/completions')) {
+                targetUrl = targetUrl.replace('/chat/completions', '/messages');
+            }
+        }
+        
         const headers = {
-            'Authorization': `Bearer ${config.apiKey}`,
             'Content-Type': 'application/json',
-            'X-Target-URL': config.apiUrl  // 告诉代理服务器目标地址
+            'X-Target-URL': targetUrl
         };
+        
+        // 如果配置了 API Key，通过自定义头传递
+        if (config.apiKey) {
+            headers['X-API-Key'] = config.apiKey;
+            // 某些服务需要 Anthropic 格式的 auth 头
+            if (isAnthropic) {
+                headers['X-Auth-Format'] = 'anthropic';
+            }
+        }
 
-        const response = await fetch(getApiUrl(), {
-            method: 'POST',
-            headers,
-            body: JSON.stringify({
+        let requestBody;
+        
+        if (isAnthropic) {
+            // Anthropic/Claude 格式
+            const { system, messages: anthropicMessages } = convertToAnthropicMessages(messages);
+            requestBody = {
+                model: config.model,
+                max_tokens: 8192,
+                messages: anthropicMessages
+            };
+            if (system) {
+                requestBody.system = system;
+            }
+            // Claude 格式不支持 stream 参数放在 body 里，需要头控制
+            if (onChunk) {
+                headers['X-Stream'] = 'true';
+            }
+        } else {
+            // OpenAI 格式
+            requestBody = {
                 model: config.model,
                 messages,
                 max_tokens: 2000,
-                temperature: 0.3,
                 stream: !!onChunk
-            }),
+            };
+            // kimi-k2.5 不支持 temperature
+            if (!config.model.includes('kimi-k2.5')) {
+                requestBody.temperature = 0.3;
+            }
+        }
+        
+        console.log('Request:', { url: config.apiUrl, apiType, model: config.model });
+
+        const response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(requestBody),
             signal
         });
         
         if (!response.ok) {
-            throw new Error(`API 错误: ${response.status}`);
+            const errorText = await response.text();
+            console.error('API Error:', response.status, errorText);
+            throw new Error(`API 错误 ${response.status}: ${errorText}`);
         }
         
-        // 流式响应
+        // 流式响应处理
         if (onChunk) {
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -108,11 +174,21 @@ export async function callLLM(messages, options = {}) {
                 const lines = chunk.split('\n');
                 
                 for (const line of lines) {
-                    if (line.startsWith('data: ') && line !== 'data: [DONE]') {
+                    if (!line.trim() || line === 'data: [DONE]') continue;
+                    
+                    if (line.startsWith('data: ')) {
                         try {
                             const data = JSON.parse(line.slice(6));
-                            const content = data.choices?.[0]?.delta?.content || '';
-                            if (content) {
+                            
+                            // Anthropic 格式
+                            if (data.type === 'content_block_delta' && data.delta?.text) {
+                                const content = data.delta.text;
+                                fullContent += content;
+                                onChunk(content, fullContent);
+                            }
+                            // OpenAI 格式
+                            else if (data.choices?.[0]?.delta?.content) {
+                                const content = data.choices[0].delta.content;
                                 fullContent += content;
                                 onChunk(content, fullContent);
                             }
@@ -126,6 +202,12 @@ export async function callLLM(messages, options = {}) {
         
         // 非流式响应
         const data = await response.json();
+        
+        // Anthropic 格式
+        if (data.content && Array.isArray(data.content)) {
+            return data.content.map(c => c.text).join('');
+        }
+        // OpenAI 格式
         return data.choices?.[0]?.message?.content || '';
         
     } catch (e) {

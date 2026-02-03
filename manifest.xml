@@ -3,5 +3,5 @@
   <ApiVersion>1.0.0</ApiVersion>
   <Name>Excel AI Agent</Name>
   <Description>用自然语言操作 Excel 表格的 AI 助手</Description>
-  <Url>https://saki0723.fun/wps-plugin/</Url>
+  <Url>http://localhost:3890/</Url>
 </JsPlugin>
